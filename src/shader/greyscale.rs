@@ -1,13 +1,14 @@
-use wgpu::{
-  BindingResource, CommandEncoder, ComputePipeline, Texture, TextureViewDescriptor,
-};
+use wgpu::{BindingResource, CommandEncoder, ComputePipeline, Texture, TextureViewDescriptor};
 
 use crate::gpu::GpuContext;
 use crate::shader::{
   Kernel, create_bind_group, create_compute_pipeline, create_shader_module, dispatch,
 };
 
-const GRAYSCALE_SHADER: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/shaders/greyscale/greyscale.wgsl"));
+const GRAYSCALE_SHADER: &str = include_str!(concat!(
+  env!("CARGO_MANIFEST_DIR"),
+  "/shaders/greyscale/greyscale.wgsl"
+));
 
 pub struct Greyscale {
   pipeline: ComputePipeline,
@@ -40,6 +41,11 @@ impl Kernel for Greyscale {
         BindingResource::TextureView(&output_view),
       ],
     );
-    dispatch(encoder, &self.pipeline, &bind_group, (output.width(), output.height()));
+    dispatch(
+      encoder,
+      &self.pipeline,
+      &bind_group,
+      (output.width(), output.height()),
+    );
   }
 }

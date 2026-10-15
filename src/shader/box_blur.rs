@@ -1,8 +1,8 @@
 use std::mem;
 
 use wgpu::{
-  BindingResource, Buffer, BufferDescriptor, BufferUsages, CommandEncoder, ComputePipeline, Texture,
-  TextureViewDescriptor,
+  BindingResource, Buffer, BufferDescriptor, BufferUsages, CommandEncoder, ComputePipeline,
+  Texture, TextureViewDescriptor,
 };
 
 use crate::gpu::GpuContext;
@@ -10,7 +10,10 @@ use crate::shader::{
   Kernel, create_bind_group, create_compute_pipeline, create_shader_module, dispatch,
 };
 
-const BOX_BLUR_SHADER: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/shaders/box_blur/box_blur.wgsl"));
+const BOX_BLUR_SHADER: &str = include_str!(concat!(
+  env!("CARGO_MANIFEST_DIR"),
+  "/shaders/box_blur/box_blur.wgsl"
+));
 
 pub struct BoxBlur {
   pipeline: ComputePipeline,
@@ -60,6 +63,11 @@ impl Kernel for BoxBlur {
         self.radius_buffer.as_entire_binding(),
       ],
     );
-    dispatch(encoder, &self.pipeline, &bind_group, (output.width(), output.height()));
+    dispatch(
+      encoder,
+      &self.pipeline,
+      &bind_group,
+      (output.width(), output.height()),
+    );
   }
 }

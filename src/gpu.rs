@@ -1,8 +1,10 @@
-use std::sync::Arc;
+use std::ops::Deref;
+use std::sync::{Arc, Mutex};
 
 use wgpu::{
-  Backends, Device, Instance, InstanceDescriptor, InstanceFlags, PowerPreference, Queue,
-  RequestAdapterOptions,
+  Backends, Device, Extent3d, Instance, InstanceDescriptor, InstanceFlags, PowerPreference, Queue,
+  RequestAdapterOptions, Texture, TextureDescriptor, TextureDimension, TextureFormat,
+  TextureUsages,
 };
 
 #[derive(thiserror::Error, Debug)]
@@ -14,10 +16,35 @@ pub enum GpuError {
   DeviceCreationFailure(#[from] wgpu::RequestDeviceError),
 }
 
+pub struct Scratch {
+  texture: Option<Texture>,
+  pool: Arc<Mutex<Vec<Texture>>>,
+}
+
+impl Deref for Scratch {
+  type Target = Texture;
+
+  fn deref(&self) -> &Texture {
+    self
+      .texture
+      .as_ref()
+      .expect("scratch texture is only taken on drop")
+  }
+}
+
+impl Drop for Scratch {
+  fn drop(&mut self) {
+    if let Some(texture) = self.texture.take() {
+      self.pool.lock().unwrap().push(texture);
+    }
+  }
+}
+
 #[derive(Debug, Clone)]
 pub struct GpuContext {
   pub device: Arc<Device>,
   pub queue: Arc<Queue>,
+  scratch: Arc<Mutex<Vec<Texture>>>,
 }
 
 impl GpuContext {
@@ -45,7 +72,36 @@ impl GpuContext {
     let device = Arc::new(device);
     let queue = Arc::new(queue);
 
-    Ok(Self { device, queue })
+    Ok(Self {
+      device,
+      queue,
+      scratch: Default::default(),
+    })
+  }
+
+  pub fn scratch(&self, size: Extent3d, format: TextureFormat) -> Scratch {
+    let mut pool = self.scratch.lock().unwrap();
+    let texture = match pool
+      .iter()
+      .position(|t| t.size() == size && t.format() == format)
+    {
+      Some(index) => pool.swap_remove(index),
+      None => self.device.create_texture(&TextureDescriptor {
+        label: Some("scratch texture"),
+        size,
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: TextureDimension::D2,
+        format,
+        view_formats: &[],
+        usage: TextureUsages::TEXTURE_BINDING | TextureUsages::STORAGE_BINDING,
+      }),
+    };
+
+    Scratch {
+      texture: Some(texture),
+      pool: self.scratch.clone(),
+    }
   }
 }
 

@@ -15,6 +15,7 @@ use process::ImageProcessor;
 
 use shader::box_blur::BoxBlur;
 use shader::edge_detection::EdgeDetection;
+use shader::fonda::Fonda;
 use shader::gaussian_blur::GaussianBlur;
 use shader::greyscale::Greyscale;
 
@@ -24,14 +25,16 @@ enum Filter {
   GaussianBlur,
   BoxBlur,
   EdgeDetection,
+  Fonda,
 }
 
 impl Filter {
-  const ALL: [Filter; 4] = [
+  const ALL: [Filter; 5] = [
     Filter::Greyscale,
     Filter::GaussianBlur,
     Filter::BoxBlur,
     Filter::EdgeDetection,
+    Filter::Fonda,
   ];
 }
 
@@ -42,6 +45,7 @@ impl fmt::Display for Filter {
       Filter::GaussianBlur => write!(f, "gaussian-blur"),
       Filter::BoxBlur => write!(f, "box-blur"),
       Filter::EdgeDetection => write!(f, "edge-detection"),
+      Filter::Fonda => write!(f, "fonda"),
     }
   }
 }
@@ -78,7 +82,7 @@ struct Args {
     option,
     short = 'k',
     default = "Filter::Greyscale",
-    description = "kernel: greyscale, gaussian-blur, box-blur, or edge-detection (default: greyscale)"
+    description = "kernel: greyscale, gaussian-blur, box-blur, edge-detection, or fonda (default: greyscale)"
   )]
   kernel: Filter,
 
@@ -115,6 +119,7 @@ fn main() -> Result<(), anyhow::Error> {
       processor.process_image(&image, &kernel)?
     }
     Filter::EdgeDetection => processor.process_image(&image, &EdgeDetection::new(&gpu_context))?,
+    Filter::Fonda => processor.process_image(&image, &Fonda::new(&gpu_context))?,
   };
 
   let stem = Path::new(&args.input)

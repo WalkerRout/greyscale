@@ -1,13 +1,14 @@
-use wgpu::{
-  BindingResource, CommandEncoder, ComputePipeline, Texture, TextureViewDescriptor,
-};
+use wgpu::{BindingResource, CommandEncoder, ComputePipeline, Texture, TextureViewDescriptor};
 
 use crate::gpu::GpuContext;
 use crate::shader::{
   Kernel, create_bind_group, create_compute_pipeline, create_shader_module, dispatch,
 };
 
-const EDGE_DETECTION_SHADER: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/shaders/edge_detection/edge_detection.wgsl"));
+const EDGE_DETECTION_SHADER: &str = include_str!(concat!(
+  env!("CARGO_MANIFEST_DIR"),
+  "/shaders/edge_detection/edge_detection.wgsl"
+));
 
 pub struct EdgeDetection {
   pipeline: ComputePipeline,
@@ -41,6 +42,11 @@ impl Kernel for EdgeDetection {
         BindingResource::TextureView(&output_view),
       ],
     );
-    dispatch(encoder, &self.pipeline, &bind_group, (output.width(), output.height()));
+    dispatch(
+      encoder,
+      &self.pipeline,
+      &bind_group,
+      (output.width(), output.height()),
+    );
   }
 }
