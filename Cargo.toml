@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.98"
+argh = "0.1.14"
 bytemuck = "1.23.0"
 image = "0.25.6"
 pollster = "0.4.0"
