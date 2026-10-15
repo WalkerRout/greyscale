@@ -1,12 +1,14 @@
 use std::mem;
 
 use wgpu::{
-  BindGroup, BindGroupDescriptor, BindGroupEntry, BindingResource, Buffer, BufferDescriptor,
-  BufferUsages, ComputePipeline, TextureView,
+  BindingResource, Buffer, BufferDescriptor, BufferUsages, CommandEncoder, ComputePipeline, Texture,
+  TextureViewDescriptor,
 };
 
 use crate::gpu::GpuContext;
-use crate::shader::{Kernel, create_compute_pipeline, create_shader_module};
+use crate::shader::{
+  Kernel, create_bind_group, create_compute_pipeline, create_shader_module, dispatch,
+};
 
 const GAUSSIAN_BLUR_SHADER: &str = r#"
 @group(0) @binding(0)
@@ -92,32 +94,21 @@ impl GaussianBlur {
 }
 
 impl Kernel for GaussianBlur {
-  fn pipeline(&self) -> &ComputePipeline {
-    &self.pipeline
-  }
+  type Input<'a> = &'a Texture;
 
-  fn create_bind_group(
-    &self,
-    input_texture_view: &TextureView,
-    output_texture_view: &TextureView,
-  ) -> BindGroup {
-    self.context.device.create_bind_group(&BindGroupDescriptor {
-      label: Some("gaussian blur bind group"),
-      layout: &self.pipeline.get_bind_group_layout(0),
-      entries: &[
-        BindGroupEntry {
-          binding: 0,
-          resource: BindingResource::TextureView(input_texture_view),
-        },
-        BindGroupEntry {
-          binding: 1,
-          resource: BindingResource::TextureView(output_texture_view),
-        },
-        BindGroupEntry {
-          binding: 2,
-          resource: self.radius_buffer.as_entire_binding(),
-        },
+  fn encode(&self, encoder: &mut CommandEncoder, input: &Texture, output: &Texture) {
+    let input_view = input.create_view(&TextureViewDescriptor::default());
+    let output_view = output.create_view(&TextureViewDescriptor::default());
+    let bind_group = create_bind_group(
+      &self.context,
+      "gaussian blur bind group",
+      &self.pipeline,
+      &[
+        BindingResource::TextureView(&input_view),
+        BindingResource::TextureView(&output_view),
+        self.radius_buffer.as_entire_binding(),
       ],
-    })
+    );
+    dispatch(encoder, &self.pipeline, &bind_group, (output.width(), output.height()));
   }
 }

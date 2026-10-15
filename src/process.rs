@@ -3,10 +3,9 @@ use std::mem;
 use image::{ImageBuffer, Rgba};
 
 use wgpu::{
-  BufferDescriptor, BufferUsages, CommandEncoderDescriptor, ComputePassDescriptor, Extent3d,
-  MapMode, PollType, TexelCopyBufferInfo, TexelCopyBufferLayout, TexelCopyTextureInfo,
-  TextureAspect, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
-  TextureViewDescriptor,
+  BufferDescriptor, BufferUsages, CommandEncoderDescriptor, Extent3d, MapMode, PollType,
+  TexelCopyBufferInfo, TexelCopyBufferLayout, TexelCopyTextureInfo, Texture, TextureAspect,
+  TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
 };
 
 use crate::gpu::{self, GpuContext};
@@ -36,7 +35,7 @@ impl ImageProcessor {
 
   pub fn process_image<K>(&self, image: &Image, kernel: &K) -> Result<Image, ProcessError>
   where
-    K: Kernel,
+    K: for<'a> Kernel<Input<'a> = &'a Texture>,
   {
     let (width, height) = image.dimensions();
 
@@ -98,27 +97,12 @@ impl ImageProcessor {
       mapped_at_creation: false,
     });
 
-    let input_view = input_texture.create_view(&TextureViewDescriptor::default());
-    let output_view = output_texture.create_view(&TextureViewDescriptor::default());
-    let bind_group = kernel.create_bind_group(&input_view, &output_view);
-
     let mut encoder = self
       .context
       .device
       .create_command_encoder(&CommandEncoderDescriptor { label: None });
 
-    {
-      let wg_size = kernel.workgroup_size();
-      let (dispatch_width, dispatch_height) =
-        gpu::compute_work_group_count((extent.width, extent.height), wg_size);
-      let mut compute_pass = encoder.begin_compute_pass(&ComputePassDescriptor {
-        label: Some("compute pass"),
-        timestamp_writes: Default::default(),
-      });
-      compute_pass.set_pipeline(kernel.pipeline());
-      compute_pass.set_bind_group(0, &bind_group, &[]);
-      compute_pass.dispatch_workgroups(dispatch_width, dispatch_height, 1);
-    }
+    kernel.encode(&mut encoder, &input_texture, &output_texture);
 
     encoder.copy_texture_to_buffer(
       TexelCopyTextureInfo {
